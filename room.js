@@ -2,11 +2,11 @@ const RoomManager = require('room.manager');
 
 Room.prototype.roomManager = function() {
     if(this._roomManager === undefined) {
-        if(this.controller && this.controller.my) {
+        // if(this.controller && this.controller.my) {
+            // console.log('test',this._roomManager)
             this._roomManager = new RoomManager(this);
-        } else {
-            this._roomManager = null;
-        }
+            // console.log('test',this._roomManager)
+        // }
     }
 
     return this._roomManager;

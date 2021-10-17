@@ -15,7 +15,13 @@ spawnScientist(roomName) - spawns
 
 
 global.test = function (room) {
+    
+    var start = Game.cpu.getUsed();
     roomBase.test(room);
+    
+    var cpuUsed = Game.cpu.getUsed() - start;
+
+    console.log(cpuUsed)
 }
 
 global.evalRail = function (room) {
@@ -64,11 +70,15 @@ global.showNukeRange = function () {
 global.sendNukes = function (number, x, y, roomName) {
     let nukepos = new RoomPosition(x, y, roomName);
     
+    let nukers = [];
     // Memory.global.communes.forEach(room => {
-    for (room in Memory.global.communes) {
-        if (Memory.rooms[Memory.global.communes[room]].controllerLevel !== 8) continue;
-        console.log('nuker room',Memory.global.communes[room])
+    for (room of Memory.global.communes) {
+        if (Memory.rooms[room].controllerLevel !== 8) continue;
+        nukers.push(Game.rooms[room].nuker())
     }
+
+
+    console.log(nukers)
     // let nukers = Object.values(Game.structures).filter(structure =>
     //     structure.structureType === STRUCTURE_NUKER &&
     //     Game.map.getRoomLinearDistance(structure.pos.roomName, nukepos.roomName, false) <= NUKE_RANGE &&

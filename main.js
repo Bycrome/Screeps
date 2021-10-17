@@ -24,6 +24,7 @@ const roles = {
     "external-courier": roleCourier.courierII, 
     "full-courier": roleCourier.courierIII, 
     "scout": require('role.scout').run, 
+    "hauler": require('role.hauler').run,
     "transfer": require('transfer').run, 
     "reserver": require("reserver").reserver, 
     // "builder": require("construction").repair, 
@@ -84,10 +85,6 @@ module.exports.loop = function () {
     //     }
     // }
     
-    // if (Game.shard && Game.cpu.bucket == 10000) {
-    //     Game.cpu.generatePixel();
-    // }
-
 
     // if (Memory["objectivies"] == undefined || Memory["objectivies"]["expansion"] == undefined) {
     //     Memory["objectivies"] = {};
@@ -129,7 +126,8 @@ module.exports.loop = function () {
     });
     
     Object.values(Game.rooms).forEach(room => {
-        
+        // room.roomManager().run(room)
+
         var roomStartCpu = Game.cpu.getUsed();
         if (rooms[room.name] && room.name == rooms[room.name].name) {
             rooms[room.name].run(room);
@@ -138,14 +136,14 @@ module.exports.loop = function () {
             rooms[room.name] = new RoomManager(room);
         }
 
-        if (Game.time % 300 == 0) {
+        if (Game.time % 10000 == 0) {
             rooms[room.name] = new RoomManager(room);
         }
         
-        // console.log(rooms[room.name].test)
+    //     // console.log(rooms[room.name].test)
 
-        var roomElapsed = Game.cpu.getUsed() - roomStartCpu;
-        // console.log('<span>[Room '+'<a href="#!/room/'+Game.shard.name+'/'+room.name+'">'+room.name+'</a>] used: <span style="color:rgba('+((roomElapsed*155) )+', '+(255-(roomElapsed*85))+', 0, 1);">'+roomElapsed+'</span> CPU</span>');
+    //     var roomElapsed = Game.cpu.getUsed() - roomStartCpu;
+    //     // console.log('<span>[Room '+'<a href="#!/room/'+Game.shard.name+'/'+room.name+'">'+room.name+'</a>] used: <span style="color:rgba('+((roomElapsed*155) )+', '+(255-(roomElapsed*85))+', 0, 1);">'+roomElapsed+'</span> CPU</span>');
     })
 
     // clear memory
@@ -174,12 +172,19 @@ module.exports.loop = function () {
         var elapsed = Game.cpu.getUsed() - startCpu;
 
 
-        if (name.includes("Scientist")) {
-            console.log('<span>Creep '+name+' used: <span style="color:rgba('+(255 * elapsed)+', '+(255-(elapsed*150))+', 0, 1);">'+elapsed+'</span> CPU</span>');
-        }
+        // if (name.includes("Harvester")) {
+        //     console.log('<span>Creep '+name+' used: <span style="color:rgba('+(255 * elapsed)+', '+(255-(elapsed*150))+', 0, 1);">'+elapsed+'</span> CPU</span>');
+        //     console.log(creep.room, creep.ticksToLive)
+        // }
 
         // console.log('<span>Creep '+name+' used: <span style="color:rgba('+(255 * elapsed)+', '+(255-(elapsed*150))+', 0, 1);">'+elapsed+'</span> CPU</span>');
     }
+
+
+    if (Game.resources.pixel && Game.cpu.bucket == 10000) {
+        Game.cpu.generatePixel();
+    }
+
 
     // console.log("------------------------- END OF TICK "+Game.time+" --------------")
 }

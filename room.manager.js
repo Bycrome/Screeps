@@ -32,6 +32,13 @@ module.exports = class roomManager {
         // this.labs = new roomLabs(room);
         this.trading = new roomTrading(room);
         this.terminal = new roomTerminal(room);
+
+        if (this.spawns.length > 0) {
+            this.roomNumber = Memory.global.communes[room.name];
+            this.lastTerminal = Game.time;
+            this.lastBase = Game.time;
+        }
+
         this.roomCreeps = new roomCreeps(room);
         this.roomDefcon = 5;
 
@@ -68,6 +75,7 @@ module.exports = class roomManager {
     run(room) {
 
 
+
         if (Game.time % 1200 == 0) {
             cache.update.mainLink(room);
             cache.update.containers(room);
@@ -80,6 +88,19 @@ module.exports = class roomManager {
         }
 
         if (this.spawns.length > 0) {
+            
+            // change to once ever 100
+            if ((Game.time - this.lastTerminal) - (this.roomNumber*10) > 1000) {
+                console.log('DEBUG:', "TERMINAL RUNNING");
+                this.terminal.run(room, room.terminal);
+                this.lastTerminal = Game.time;
+            }
+
+            if ((Game.time - this.lastBase) - this.roomNumber > 100) {
+                console.log('DEBUG:', "BASE CODE RUNNING");
+                roomBase.manageBase(room);
+                this.lastBase = Game.time;
+            }
 
             let hostiles = room.find(FIND_HOSTILE_CREEPS);
 
@@ -97,19 +118,9 @@ module.exports = class roomManager {
             }
 
 
-            if (Game.time % 51 == 0) {
-                // console.log('afds', JSON.stringify(this.factory))
-                roomBase.manageBase(room);
-            }
-
-            // change to once ever 100
-            if (Game.time % 1002 == 0) {
-                this.terminal.run(room, room.terminal);
-            }
-
-
             if (Game.time % 1000 == 0) {
             // if (Game.time % 10 == 0) {
+                console.log('DEBUG:', "EXPANSION AND NUKE RUNNING");
                 if (roomNuker.run(room) == "spawn") this.roomCreeps.manageNukeOperator();
                 if (roomExpansion.run(room) == "spawn") this.roomCreeps.manageClaimer();
             }

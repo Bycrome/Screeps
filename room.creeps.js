@@ -141,30 +141,10 @@ module.exports = class Links {
             spawnHelper.spawn(this.spawns, [CARRY, CARRY], helper.nameScreep("Hopper"), { memory: { role: 'hopper', room: this.room.name} });
         }
     }
-    manageHarvester() {
-        
-        if (this.room.controller.level < 3) return;
-
-        var possible = this.room.memory.sources;
-        possible.forEach(source => {
-            // spawnHelper.getWorkParts(room, source)
-            if (helper.OccupiedSource(source, "efficientHarvester") < 1) {
-                // spawnHelper.spawn(spawns, [WORK, WORK, WORK, WORK, WORK, WORK, CARRY, MOVE], ('Harvester: ' + source), { memory: { role: 'efficientHarvester', target: source, room: room.name } });
-                spawnHelper.buildHarvester(this.room, this.spawns, helper.nameScreep("Harvester"), { memory: { role: 'efficientHarvester', target: source, room: this.room.name } });
-            }
-        });
-
-        if (helper.GetAmountOfRoleWithRoom("efficientHarvester", this.room.name) >= this.room.memory.sources.length) {
-            this.harvesterSatisfied = true;
-        }
-        else {
-            this.harvesterSatisfied = false;
-        }    
-    }
 
     manageMineralHarvester() {
         if (this.room.controller.level < 6) return;
-        if (this.room.memory.extractor && this.room.memory.mineralActive && this.room.memory["minerals"][0] && helper.GetAmountOfRoleTargeting("mineralHarveseter", this.room.memory["minerals"][0]) < 1) {
+        if (this.room.memory.extractor && this.room.memory.mineralActive && this.room.memory["minerals"][0] && helper.GetAmountOfRoleTargeting("mineralHarveseter", this.room.memory["minerals"][0]) < 1 && this.room.terminal && this.room.terminal.store[this.room.memory["mineralsTypes"][0]] < 100000) {
             spawnHelper.spawn(this.spawns, helper.BuildBody([WORK, WORK, CARRY, MOVE], this.room, null), helper.nameScreep("Mineral"), { memory: { role: 'mineralHarveseter', target: this.room.memory["minerals"][0] } });
         }
     }
@@ -210,4 +190,49 @@ module.exports = class Links {
         }
     }
 
+
+    
+    harvesterBuilder() {
+        let body = [CARRY];
+        let cost = BODYPART_COST[CARRY];
+        let work = 0;
+        let move = 0
+        while (cost < this.room.energyAvailable && work < 10) {
+            if (move < work/2) {
+                move++;
+                body.push(MOVE);
+                cost += BODYPART_COST[MOVE];
+            }
+            else {
+                work++;
+                body.push(WORK);
+                cost += BODYPART_COST[WORK];
+            }
+        }
+        return body;    
+    }
+    spawnHarvester(memory) {
+        spawnHelper.spawn(this.spawns, this.harvesterBuilder(), helper.nameScreep("Harvester"), memory);
+    }
+    manageHarvester() {
+        
+        if (this.room.controller.level < 3) return;
+
+        var possible = this.room.memory.sources;
+        possible.forEach(source => {
+            // spawnHelper.getWorkParts(room, source)
+            if (helper.OccupiedSource(source, "efficientHarvester") < 1) {
+                this.spawnHarvester({ memory: { role: 'efficientHarvester', target: source, room: this.room.name } });
+                // spawnHelper.spawn(spawns, [WORK, WORK, WORK, WORK, WORK, WORK, CARRY, MOVE], ('Harvester: ' + source), { memory: { role: 'efficientHarvester', target: source, room: room.name } });
+                // spawnHelper.buildHarvester(this.room, this.spawns, helper.nameScreep("Harvester"), { memory: { role: 'efficientHarvester', target: source, room: this.room.name } });
+            }
+        });
+
+        if (helper.GetAmountOfRoleWithRoom("efficientHarvester", this.room.name) >= this.room.memory.sources.length) {
+            this.harvesterSatisfied = true;
+        }
+        else {
+            this.harvesterSatisfied = false;
+        }    
+    }
 }

@@ -3,6 +3,19 @@ const movement = require("helper.movement");
 
 let source;
 module.exports = {
+    checkCapacity(creep) {
+        // if full
+        if(creep.memory["full"] && creep.store[RESOURCE_ENERGY] == 0) {
+            creep.memory.full = false;
+        }
+        if(!creep.memory["full"] && creep.store.getFreeCapacity() < 12) {
+            creep.memory.full = true;
+        }
+
+        if(creep.memory["full"]== null) {
+            creep.memory.full = false;
+        }
+    },
     run(creep) {
         
         if(creep.memory.room && creep.room.name !== creep.memory.room) {
@@ -15,27 +28,18 @@ module.exports = {
         // note change the memory to store the id instead of the whole target object
         source = Game.getObjectById(creep.memory.target);
         
+        module.exports.checkCapacity(creep);
         
-        // if full
-        if(creep.memory["full"] && creep.store[RESOURCE_ENERGY] == 0) {
-            creep.memory.full = false;
-        }
-        if(!creep.memory["full"] && creep.store.getFreeCapacity() < 12) {
-            creep.memory.full = true;
-        }
+        
 
-        if(creep.memory["full"]== null) {
-            creep.memory.full = false;
-        }
+        // if (creep.room.memory.sourceDistance == undefined || creep.room.memory.sourceDistance[creep.memory.target] == undefined) {
+        //     module.exports.checkDistance(creep);
+        // }
 
-        if (creep.room.memory.sourceDistance == undefined || creep.room.memory.sourceDistance[creep.memory.target] == undefined) {
-            module.exports.checkDistance(creep);
-        }
-
-        if (creep.ticksToLive && creep.room.memory.sourceDistance[creep.memory.target] && creep.ticksToLive < 150 && creep.ticksToLive-43 < creep.room.memory.sourceDistance[creep.memory.target]){
-            creep.memory.role = "closeDeathEfficientHarvester";
-            module.exports.checkDistance(creep);
-        }
+        // if (creep.ticksToLive && creep.room.memory.sourceDistance[creep.memory.target] && creep.ticksToLive < 150 && creep.ticksToLive-43 < creep.room.memory.sourceDistance[creep.memory.target]){
+        //     creep.memory.role = "closeDeathEfficientHarvester";
+        //     module.exports.checkDistance(creep);
+        // }
 
         if (creep.room.memory.sourceContainers[creep.memory.target] == undefined) {
             module.exports.buildContainer(creep);
@@ -54,6 +58,8 @@ module.exports = {
             }
         }
 
+        module.exports.checkCapacity(creep);
+        
         if (creep.memory.full) {
 
             if (creep.room.memory.sourceLinks[creep.memory.target] && (creep.room.memory.mainLink != undefined || creep.room.memory.controllerLink != undefined)) {
