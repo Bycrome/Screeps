@@ -27,32 +27,34 @@ module.exports = {
             creep.memory.upgrading = false;
         }
 	    if(creep.memory.upgrading) {
-            if (helper.GetAmountOfRoleWithRoom("transfer", creep.room.name) == 0 && creep.room.energyCapacityAvailable !== creep.room.energyAvailable) {
-                creep.say('transfer')
+            if (helper.GetAmountOfRoleWithRoom("Transfer", creep.room.name) == 0 && creep.room.energyCapacityAvailable !== creep.room.energyAvailable) {
+                creep.say('Transfer')
                 require('transfer').run(creep);
                 return;
             }
             helper.tryElseMove(creep, creep.room.controller, "red", 'upgradeController');
         }
         else {
-            if (creep.room.memory.controllerLink) {
-                var controllerLink = Game.getObjectById(creep.room.memory["controllerLink"]);
+            // if (creep.room.memory.controllerLink) {
+            //     // var controllerLink = Game.getObjectById(creep.room.memory["controllerLink"]);
 
-                if (controllerLink == null) {
-                    creep.room.memory["controllerLink"] = undefined;
-                }
+            //     // if (controllerLink == null) {
+            //     //     creep.room.memory["controllerLink"] = undefined;
+            //     // }
 
-                if (controllerLink.store.energy > creep.store.getCapacity()) {
-                    helper.tryElseMove(creep, controllerLink, "red", "withdraw");
-                }
-                else if (creep.room.storage && creep.room.storage.store[RESOURCE_ENERGY] > 20000) {
-                    helper.tryElseMove(creep, creep.room.storage, "red", "withdraw");
-                }
-                else {
-                    module.exports.AquireEnergy(creep);
-                }
-            }
-            else if (creep.room.storage && creep.room.storage.store[RESOURCE_ENERGY] > 20000) {
+            //     // if (controllerLink.store.energy > creep.store.getCapacity()) {
+            //     //     helper.tryElseMove(creep, controllerLink, "red", "withdraw");
+            //     // }
+            //     // else 
+            //     if (creep.room.storage && creep.room.storage.store[RESOURCE_ENERGY] > 20000) {
+            //         helper.tryElseMove(creep, creep.room.storage, "red", "withdraw");
+            //     }
+            //     else {
+            //         module.exports.AquireEnergy(creep);
+            //     }
+            // }
+            // else
+            if (creep.room.storage && creep.room.storage.store[RESOURCE_ENERGY] > 20000) {
                 helper.tryElseMove(creep, creep.room.storage, "red", "withdraw");
             }
             else {

@@ -46,6 +46,9 @@ module.exports = {
         }
 
         if (!creep.memory.full) {
+
+            // if (source.energy == 0) return;
+            
             if(creep.harvest(source) == ERR_NOT_IN_RANGE) {
                 creep.moveTo(source);
             }
@@ -119,13 +122,13 @@ module.exports = {
                     creep.moveTo(constructionSite);
                 }
             } 
-            else {
-                if (!creep.pos.findInRange(FIND_SOURCES, 1)) return;
-                let result = creep.room.createConstructionSite(creep.pos, STRUCTURE_CONTAINER);
-                if (result === ERR_INVALID_TARGET) {
-                    module.exports.checkContainer(creep);
-                }
-            }
+            // else {
+            //     if (!creep.pos.findInRange(FIND_SOURCES, 1)) return;
+            //     let result = creep.room.createConstructionSite(creep.pos, STRUCTURE_CONTAINER);
+            //     if (result === ERR_INVALID_TARGET) {
+            //         module.exports.checkContainer(creep);
+            //     }
+            // }
         }
     },
     

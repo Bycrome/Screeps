@@ -62,12 +62,14 @@ module.exports = {
             }
         }
 
+
+        
         if(!target) {
             target = creep.pos.findClosestByRange(FIND_HOSTILE_CREEPS, { filter: (c) => c.pos.x != 0 || c.pos.x != 49 || c.pos.y != 49 || c.pos.y != 0});
         }
 
         if(!target) {
-            target = creep.pos.findClosestByRange(FIND_HOSTILE_STRUCTURES, { filter: (s) => s.structureType != STRUCTURE_CONTROLLER});
+            target = creep.pos.findClosestByRange(FIND_HOSTILE_STRUCTURES, { filter: (s) => s.structureType != STRUCTURE_CONTROLLER && s.structureType != STRUCTURE_RAMPART});
         }
         
 
@@ -133,6 +135,7 @@ module.exports = {
             if(movement.isWithin(creep, 5, 5, 45, 45)) return false;
         }
 
+
         if(!!creep.memory.waitFor && creep.room.controller && creep.room.controller.my) {
             console.log("Attacker " + creep.name + " waiting for follower to be spawned. (" + creep.room.name + ")");
             if (helper.GetAmountOfRoleTargeting("healer", creep.name) < 1) {
@@ -140,7 +143,8 @@ module.exports = {
                 var spawns = Object.values(Game.spawns).filter(spawn => spawn.room == creep.room);
                 var name = helper.nameScreep("Medic")
                 creep.memory.waitFor = name;
-                helper.spawn(spawns, helper.BuildBody([TOUGH, MOVE, MOVE, MOVE, HEAL], creep.room, null), name, { memory: { role: 'healer', target: creep.name}});
+                helper.spawn(spawns, helper.BuildBody([MOVE, HEAL], creep.room, null), name, { memory: { role: 'healer', target: creep.name}});
+                // helper.spawn(spawns, helper.BuildBody([TOUGH, MOVE, MOVE, MOVE, HEAL], creep.room, null), name, { memory: { role: 'healer', target: creep.name}});
                 return true;
             }
         }

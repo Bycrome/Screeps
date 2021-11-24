@@ -47,4 +47,40 @@ module.exports = class Trading {
             if (roomTerminal.send(RESOURCE_ENERGY, 1000, terminal.room.name,'balancing script') === OK) return true;
         });
     }
+
+    getIngredients(commodity,obj,number){
+        if (!COMMODITIES[commodity]){
+                return('unknown commodity at get ingredients');
+        }
+        if (!number){
+                number = 1
+        }
+        let amount = number
+        if (!obj[commodity]){
+                obj[commodity] = amount
+        } else {
+                obj[commodity]+= amount
+        }
+        for (let i in baseIngredients){
+                if (baseIngredients[i] === commodity){
+                        return
+                }
+        }
+        let comps = COMMODITIES[commodity].components;
+        for (let i in comps){
+                let component = i;
+                let amount = comps[i]*(number/COMMODITIES[commodity].amount)
+                if (COMMODITIES[component]){
+                        getIngredients(component,obj,amount)
+                } else {
+                        //base level commodity
+                        if (!obj[i]){
+                                obj[i] = amount
+                        } else {
+                                obj[i]+= amount
+                        }
+                }
+        }
+        return obj;
+    }
 }

@@ -15,6 +15,11 @@ module.exports = class Links {
         return this.linkAt(this.room.storage);
     }
 
+    terminal() {
+        if(!this.room.terminal) return null;
+        return this.linkAt(this.room.terminal);
+    }
+
     sources() {
         let sources = this.room.find(FIND_SOURCES);
         return _.compact(_.map(sources, (s) => this.linkAt(s)));
@@ -67,6 +72,9 @@ module.exports = class Links {
             // avoiding minuscle transfers, to keep cooldown pressure low
             if(this.storage() && this.storage().store.getFreeCapacity(RESOURCE_ENERGY) >= 400) {
                 receiver = this.storage();
+            }
+            else if(this.terminal() && this.terminal().store.getFreeCapacity(RESOURCE_ENERGY) >= 400) {
+                receiver = this.terminal();
             }
             this.memory.pendingRequests = false;
         }

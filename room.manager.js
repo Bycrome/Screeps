@@ -7,6 +7,7 @@ const roomLabs = require('room.labs');
 const roomBase = require('room.base');
 const roomNuker = require('room.nuker');
 const roomCreeps = require('room.creeps');
+const roomCreepSpawner = require('room.creepSpawner');
 const roomExpansion = require('room.expansion');
 const roomCache = require('room.cache');
 
@@ -24,6 +25,7 @@ module.exports = class roomManager {
         // console.log(Game.rooms["W3N1"].controller.owner.username)
         
         this.spawns = Object.values(Game.spawns).filter(spawn => spawn.room == room);
+        this.spawner = new roomCreepSpawner(room);
         // this.constructions = new Constructions(room);
         // this.defense = new Defense(room);
         this.factory = new roomFactory(room);
@@ -33,42 +35,31 @@ module.exports = class roomManager {
         this.trading = new roomTrading(room);
         this.terminal = new roomTerminal(room);
 
+       
+        roomCache.source(room);
+        roomCache.extension(room);
+        roomCache.factory(room);
+        roomCache.ownedRooms(room);
+        roomCache.owner(room);
+        roomCache.labs(room);
+        roomCache.links(room);
+
+        cache.init.sources(room);
+        cache.init.containers(room);
+        cache.init.storage(room);
+        cache.init.exits(room);
+        cache.init.locations(room);
+
         if (this.spawns.length > 0) {
-            this.roomNumber = Memory.global.communes[room.name];
+            this.roomNumber = Object.values(Memory.global.communes).indexOf(room.name);
             this.lastTerminal = Game.time;
             this.lastBase = Game.time;
+            this.lastGeneral = Game.time;
         }
 
         this.roomCreeps = new roomCreeps(room);
         this.roomDefcon = 5;
 
-        // roomCache.source(room);
-
-
-        // let flag = Game.flags[room.name];
-        // if (room.memory.basePos == undefined) {
-        //     var test = roomBase.distanceTransform(room);
-        //     console.log("evaluating room",room.name,"", test)
-        //     if (test) {
-        //         Game.rooms[room.name].createFlag(test, room.name, COLOR_BLUE, COLOR_BLUE);
-        //         room.memory.basePos = test;
-        //     }
-        //     else {
-        //         console.log("unable to find pos for"+room.name)
-        //         room.memory.basePos = null;
-        //     }
-        // }
-        // this.mode = this.room.memory.mode || "normal";
-
-        roomCache.factory(room);
-        roomCache.ownedRooms(room);
-
-        cache.init.sources(room);
-        cache.init.containers(room);
-        cache.init.links(room);
-        cache.init.storage(room);
-        cache.init.exits(room);
-        cache.init.locations(room);
         console.log("init",this.room.name)
     }
 
@@ -77,27 +68,35 @@ module.exports = class roomManager {
 
 
         if (Game.time % 1200 == 0) {
-            cache.update.mainLink(room);
             cache.update.containers(room);
-            cache.update.spawn(room);
-            cache.update.enemies(room);
-            cache.update.sourceLink(room);
-            cache.update.controllerLink(room);
+            // cache.update.spawn(room);
+            // cache.update.enemies(room);
+            // cache.update.controllerLink(room);
             cache.update.sourceContainers(room);
             cache.update.extractor(room);
         }
 
-        if (this.spawns.length > 0) {
+        if (this.spawns.length > 0 && this.room.controller.my) {
+
+            // var before = Game.cpu.getUsed();
+            this.spawner.run(this.roomDefcon, this.spawns, room)
+            // var used = Game.cpu.getUsed() - before;
+            // console.log("new:",used)
             
-            // change to once ever 100
-            if ((Game.time - this.lastTerminal) - (this.roomNumber*10) > 1000) {
+            if ((Game.time - this.lastTerminal) - (this.roomNumber*9) > 1000) {
                 console.log('DEBUG:', "TERMINAL RUNNING");
                 this.terminal.run(room, room.terminal);
                 this.lastTerminal = Game.time;
             }
 
+            if ((Game.time - this.lastGeneral) - (this.roomNumber*8) > 500) {
+                console.log('DEBUG:', "EXPANSION AND NUKE RUNNING");
+                this.general(room);
+                this.lastGeneral = Game.time;
+            }
+
             if ((Game.time - this.lastBase) - this.roomNumber > 100) {
-                console.log('DEBUG:', "BASE CODE RUNNING");
+                console.log('DEBUG:', "BASE CODE RUNNING",Game.time);
                 roomBase.manageBase(room);
                 this.lastBase = Game.time;
             }
@@ -117,21 +116,15 @@ module.exports = class roomManager {
                 this.roomDefcon = 5;
             }
 
-
-            if (Game.time % 1000 == 0) {
-            // if (Game.time % 10 == 0) {
-                console.log('DEBUG:', "EXPANSION AND NUKE RUNNING");
-                if (roomNuker.run(room) == "spawn") this.roomCreeps.manageNukeOperator();
-                if (roomExpansion.run(room) == "spawn") this.roomCreeps.manageClaimer();
-            }
             
             
             roomTower.run(room, room.storage, room.controller.level, hostiles)
+            
 
             // this.trading.runTerminal();
-    
-            this.roomCreeps.run(this.roomDefcon, this.spawns);
-            
+
+
+
             // this.labs.run();
             
             this.links.fullfillRequests();
@@ -142,13 +135,6 @@ module.exports = class roomManager {
 
             // this.visuals()
 
-
-            // if (Game.time % 500 == 0) {
-                // structure.newBase(this.rooms, spawns[0]);
-                // structure.buildRoad(room, spawns[0]);
-                // structure.exitWalls(room, spawns[0]);
-            // }
-           
     
             // this.factory.needs();
             // this.factory.run();
@@ -165,6 +151,15 @@ module.exports = class roomManager {
         // this.spawns.renderOverlay();
 
         // this.renderModeOverlay();
+    }
+
+    general(room) {
+        console.log("GENERAL",this.room.name)
+        if (roomNuker.run(room) == "spawn") this.roomCreeps.manageNukeOperator(this.spawns);
+        if (roomExpansion.run(room) == "spawn") this.roomCreeps.manageClaimer(this.spawns);
+        this.roomCreeps.manageExpansionBuilder();
+        this.roomCreeps.manageRampartUpgraders(this.spawns);
+        // if (this.roomNumber == 0) 
     }
 
     // spawn(parts, memory) {

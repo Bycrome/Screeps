@@ -118,7 +118,8 @@ module.exports = {
         return !target.hits;
     },
     harvestEnergy: function(creep) {
-        if (creep.room.storage && creep.room.storage.store[RESOURCE_ENERGY] > 50000) {
+        // if (creep.room.storage && creep.room.storage.store[RESOURCE_ENERGY] > 50000) {
+        if (creep.room.storage && creep.room.storage.store[RESOURCE_ENERGY] > 500) {
             helper.tryElseMove(creep, creep.room.storage, "red", "withdraw");
         }
         else {

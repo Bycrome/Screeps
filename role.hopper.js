@@ -50,7 +50,8 @@ module.exports = {
                     creep.transfer(structures[0], _.last(_.keys(creep.store)));
                     return;
                 }
-                else if (creep.room.terminal && creep.room.terminal["store"][RESOURCE_ENERGY] < 10000 || creep.room.storage.store[RESOURCE_ENERGY] > 750000) {
+                else if ((creep.room.terminal && creep.room.terminal["store"][RESOURCE_ENERGY] < 10000 && creep.room.storage && creep.room.storage.store[RESOURCE_ENERGY] > 10000) || (creep.room.storage && creep.room.storage.store[RESOURCE_ENERGY] > 750000) || (!creep.room.storage && creep.room.terminal)) {
+                    creep.say('test')
                     creep.transfer(creep.room.terminal, _.last(_.keys(creep.store)));
                     return;
                 }

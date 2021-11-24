@@ -34,6 +34,18 @@ module.exports = {
         } else {
             module.exports.findNewTarget(creep);
         }
+
+        
+        // if(target) {
+        //     if (target.hits < target.hitsMax) {
+        //         module.exports.heal(creep, target);
+        //     }
+        //     else if (creep.hits < creep.hitsMax) {
+        //         module.exports.heal(creep, creep);
+        //     }
+        // } else {
+        //     module.exports.findNewTarget(creep);
+        // }
     },
     heal(creep, target) {
         let healResult = creep.heal(target);

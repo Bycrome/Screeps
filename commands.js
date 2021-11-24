@@ -13,38 +13,149 @@ spawnScientist(roomName) - spawns
 <span>
 `;
 
-
-global.test = function (room) {
-    
-    var start = Game.cpu.getUsed();
-    roomBase.test(room);
-    
-    var cpuUsed = Game.cpu.getUsed() - start;
-
-    console.log(cpuUsed)
+global.showBase = function(roomName, center) {
+    roomBase.visual(roomName, center);
 }
 
-global.evalRail = function (room) {
-    numberOfTowers = 6;
-    maxTowerDamage = 600;
-    
+global.emptyTerminal = function(roomName) {
+    var terminal = Game.rooms[roomName].terminal;
+    var resources = terminal.store;
+    for (var resource in resources) {
+        if (resource != RESOURCE_ENERGY) {
+            
+            let orders = Game.market.getAllOrders(order => order.resourceType == resource && order.type == ORDER_BUY && Game.market.calcTransactionCost(resources[resource], roomName, order.roomName) < 2500);
+            orders = orders.sort(function (a, b) { return b.price - a.price })
+            let order = orders[0];
+            // sell on market for highest price
+            // let order = helper.getMostExpensiveBuyOrder(resource);
+            // console.log(JSON.stringify(price))
+            // let amount = resources[resource] ||
+            if (!orders[0]) continue; 
+            let amount = (resources[resource] < order.amount ? resources[resource] : order.amount);
+            console.log("attempting to sell",amount, resource, "for", order.price);
+            return(Game.market.deal(order.id, amount, roomName));
+        }
+    }
+    return ("No orders avaliable")
+}
+
+global.buyEnergy = function(roomName) {
+    // buy energy from market with lowest fees and lowest price
+    var orders = Game.market.getAllOrders(order => order.resourceType == RESOURCE_ENERGY && order.type == ORDER_SELL && Game.market.calcTransactionCost(order.amount, roomName, order.roomName) < order.amount/2);
+    console.log(JSON.stringify(orders));
+    // sort orders by price lowest to highest
+    orders = orders.sort(function (a, b) { return b.price - a.price })
+    console.log(JSON.stringify(orders[0]));
+    // buy the cheapest order
+    // terminal free
+    if (orders[0]) {
+
+        let amount = (orders[0].amount < Game.rooms[roomName].terminal.store.getFreeCapacity(RESOURCE_ENERGY) ? orders[0].amount : Game.rooms[roomName].terminal.store.getFreeCapacity(RESOURCE_ENERGY));
+        // let amount = (orders[0].amount <  ? orders[0].amount : 1000);
+        console.log("attempting to buy",amount, "for", orders[0].price);
+        return(Game.market.deal(orders[0].id, amount, roomName));
+    }
+}
+
+global.base = function(room) {
+    roomBase.manageBase(room);
 }
 
 global.planRoom = function (room) {
-    return roomBase.distanceTransform(room);
+    let start = Game.cpu.getUsed();
+    var base = roomBase.distanceTransform(room);
+    console.log("plan room used: ",(Game.cpu.getUsed() - start), " CPU");
+    return base;
+}
+
+global.spawnEmpty = function(roomName) {
+    var spawns = Object.values(Game.spawns).filter(spawn => spawn.room.name == roomName);
+    var name = helper.nameScreep("Empty");
+    return(helper.spawn(spawns, [MOVE, CARRY], name, { memory: { role: 'empty', room: roomName}}));
+}
+
+global.spawnThief = function(roomName, target, boosted) {
+    var spawns = Object.values(Game.spawns).filter(spawn => spawn.room.name == roomName);
+    var name = helper.nameScreep("Bycrome");
+    if (boosted) {
+        var body = helper.BuildBody([CARRY, CARRY, CARRY, CARRY, MOVE], Game.rooms[roomName], null);
+        var memory = {memory: {role: 'thief', room: roomName, target: target, boosts: {tough:"", move:"", heal:""}}};
+    }
+    else {
+        // var body = helper.BuildBody([CARRY, MOVE], Game.rooms[roomName], null);
+        var body = helper.BuildBody([CARRY, CARRY, MOVE], Game.rooms[roomName], null);
+        var memory = {memory: {role: 'thief', room: roomName, target: target}}
+    }
+    return(helper.spawn(spawns, body, name, memory));
+}
+
+global.spawnDrainer = function(roomName, target, boosted) {
+    var spawns = Object.values(Game.spawns).filter(spawn => spawn.room.name == roomName);
+    var name = helper.nameScreep("Bycrome");
+    if (boosted) {
+        // var body = helper.BuildBody([], Game.rooms[roomName], null);
+        var memory = {memory: {role: 'drainer', target: target, boosts: {tough:"", move:"", heal:""}}};
+    }
+    else {
+        // var body = helper.BuildBody([], Game.rooms[roomName], null);
+        var memory = {memory: {role: 'drainer', target: target}}
+    }
+    return(helper.spawn(spawns, body, name, memory));
+}
+
+global.spawnDuo = function(roomName, target, boosted) {
+    var spawns = Object.values(Game.spawns).filter(spawn => spawn.room.name == roomName);
+    var name = helper.nameScreep("Bycrome");
+
+    
+    if (boosted) {
+        var body = helper.BuildBody([MOVE, MOVE, TOUGH, TOUGH, RANGED_ATTACK, HEAL, HEAL, HEAL, HEAL, HEAL], Game.rooms[roomName], null);
+        var memory = {memory: {role: 'hybrid', target: target, waitFor:true, boosts: {tough:"", move:"", ranged:"", heal:""}}};
+    }
+    else {
+        var body = helper.BuildBody([TOUGH, RANGED_ATTACK, RANGED_ATTACK, RANGED_ATTACK, MOVE, MOVE, MOVE, MOVE, MOVE, HEAL], Game.rooms[roomName], null);
+        // var memory = {memory: {role: 'hybrid', target: target}}
+        var memory = {memory: {role: 'hybrid', waitFor:true, target: target}}
+    }
+    return(helper.spawn(spawns, body, name, memory));
+    
 }
 
 global.spawnHybrid = function(roomName, target, boosted) {
     var spawns = Object.values(Game.spawns).filter(spawn => spawn.room.name == roomName);
     var name = helper.nameScreep("Bycrome");
+
+    
     if (boosted) {
-        var memory = {memory: {role: 'hybrid', target: target, boosts: {tough:"", move:"", ranged:"", heal:""}}}
+        var body = helper.BuildBody([MOVE, MOVE, TOUGH, TOUGH, RANGED_ATTACK, HEAL, HEAL, HEAL, HEAL, HEAL], Game.rooms[roomName], null);
+        var memory = {memory: {role: 'hybrid', target: target, boosts: {tough:"", move:"", ranged:"", heal:""}}};
     }
     else {
-        var memory = {memory: {role: 'hybrid', target: target, boosts: {tough:"", move:"", ranged:"", heal:""}}}
+        var body = helper.BuildBody([TOUGH, RANGED_ATTACK, RANGED_ATTACK, RANGED_ATTACK, MOVE, MOVE, MOVE, MOVE, MOVE, HEAL], Game.rooms[roomName], null);
+        // var memory = {memory: {role: 'hybrid', target: target}}
+        var memory = {memory: {role: 'hybrid', target: target}}
     }
-    return(helper.spawn(spawns, helper.BuildBody([MOVE, MOVE, TOUGH, TOUGH, RANGED_ATTACK, HEAL, HEAL, HEAL, HEAL, HEAL], Game.rooms[roomName], null), name, memory));
+    return(helper.spawn(spawns, body, name, memory));
     
+}
+
+global.spawnScout = function(roomName) {
+    var spawns = Object.values(Game.spawns).filter(spawn => spawn.room.name == roomName);
+    var name = helper.nameScreep("Scout");
+    return(helper.spawn(spawns, [MOVE], name, { memory: { role: 'scout', room: roomName}}));
+}
+
+global.spawnRandomScout = function() {
+    var name = helper.nameScreep("Scout");
+    var spawns = Object.values(Game.spawns).filter(spawn => spawn.room.name == Memory.global.communes[helper.randomProperty(Memory.global.communes)]);
+    var name = helper.nameScreep("Scout");
+    return(helper.spawn(spawns, [MOVE], name, { memory: { role: 'scout', room: spawns[0].room.name}}));
+}
+
+global.spawnFactory = function(roomName) {
+    var spawns = Object.values(Game.spawns).filter(spawn => spawn.room.name == roomName);
+    var name = helper.nameScreep("Scientist");
+    return(helper.spawn(spawns, [MOVE, CARRY], name, { memory: { role: 'factoryWorker', room: roomName}}));
 }
 
 global.spawnScientist = function(roomName) {
@@ -52,6 +163,13 @@ global.spawnScientist = function(roomName) {
     var name = helper.nameScreep("Scientist");
     return(helper.spawn(spawns, [MOVE, CARRY], name, { memory: { role: 'scientist', room: roomName}}));
 }
+
+global.spawnLabFiller = function(roomName) {
+    var spawns = Object.values(Game.spawns).filter(spawn => spawn.room.name == roomName);
+    var name = helper.nameScreep("Lab");
+    return(helper.spawn(spawns, [MOVE, CARRY], name, { memory: { role: 'labFiller', room: roomName}}));
+}
+
 
 global.spawnFactoryWorker = function(roomName) {
     var spawns = Object.values(Game.spawns).filter(spawn => spawn.room.name == roomName);
@@ -123,7 +241,6 @@ global.nuke = function (x, y, roomName) {
 
     let nuker = _.find(Game.structures, structure =>
         structure.structureType === STRUCTURE_NUKER &&
-        structure.ready &&
         Game.map.getRoomLinearDistance(structure.pos.roomName, nukepos.roomName, false) <= NUKE_RANGE &&
         structure.room.terminal &&
         structure.room.terminal.store[RESOURCE_GHODIUM] > 5000 &&
@@ -147,6 +264,24 @@ global.attack = function (roomName) {
 
 }
 
+global.removeAllConstructionSitesWithNoProgress = function (roomName) {
+    var room = Game.rooms[roomName];
+    var constructionSites = room.find(FIND_MY_CONSTRUCTION_SITES);
+    constructionSites.forEach(function (constructionSite) {
+        if (constructionSite.progressTotal == 0) {
+            constructionSite.remove();
+        }
+    });
+}
+
+global.removeAllConstructionSites = function (roomName) {
+    var room = Game.rooms[roomName];
+    var constructionSites = room.find(FIND_MY_CONSTRUCTION_SITES);
+    constructionSites.forEach(function (constructionSite) {
+        constructionSite.remove();
+    });
+}
+
 global.removeAllSites = function () {
 
     for (let value in Game.constructionSites) {
@@ -157,4 +292,49 @@ global.removeAllSites = function () {
     }
 
     return "removed all sites"
+}
+
+
+// test auto fill room
+// find closest enemy room
+global.findClosestEnemyRoom = function() {
+
+    for (let friendly of Memory.global.communes) {
+        // console.log(friendly)
+       
+    }
+
+
+    
+    //
+    // return closestRoom;
+}
+
+global.findClosestEnemyRoomFromRoom = function(room) {
+    let closestRoom = "";
+    let closestDistance = 99999;
+    for (let roomName in Memory.rooms) {
+        if (roomName == room) continue;
+        // if (!Memory.rooms[roomName].controller) continue;
+        // if (Memory.rooms[roomName].controller.my) continue;
+        if (!Memory.rooms[roomName].owner) continue;
+
+        // maybe dissable this
+        if (Memory.rooms[roomName].owner == "Invader") continue;
+        
+        // HARDCODED USERNAME NEEDS CHANGING
+        if (Memory.rooms[roomName].owner == "Bycrome") continue;
+        
+        let distance = Game.map.findRoute(room, roomName).length;
+        if (distance < closestDistance) {
+            closestDistance = distance;
+            closestRoom = roomName;
+        }
+        
+    }
+    return closestRoom;
+}
+
+global.sendDuoToClosestRoom = function(roomName, boost) {
+    spawnHybrid(roomName, findClosestEnemyRoomFromRoom("W15S9"), boost);
 }

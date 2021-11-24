@@ -1,5 +1,44 @@
 const RoomManager = require('room.manager');
 
+global.ROOM_STANDARD = 		'room'
+global.ROOM_SOURCE_KEEPER =	'source_keeper'
+global.ROOM_CENTER =		'center'
+global.ROOM_HIGHWAY = 		'highway'
+global.ROOM_CROSSROAD = 	'highway_portal'
+
+Room.describe = function(name) {
+	const [EW, NS] = String(name).match(/\d+/g)
+	if (EW%10 == 0 && NS%10 == 0) {
+		return ROOM_CROSSROAD
+	}
+  	else if (EW%10 == 0 || NS%10 == 0) {
+		return ROOM_HIGHWAY
+	}
+	else if (EW%5 == 0 && NS%5 == 0) {
+		return ROOM_CENTER
+	}
+	else if (Math.abs(5 - EW%10) <= 1 && Math.abs(5 - NS%10) <= 1) {
+		return ROOM_SOURCE_KEEPER
+	}
+	else {
+		return ROOM_STANDARD
+	}
+}
+
+// getRoomName() {
+//     let [x,y] = [Math.floor(this.x / 50), Math.floor(this.y / 50)]
+//     let result = "";
+//     result += (x < 0 ? "W" + String(~x) : "E" + String(x));
+//     result += (y < 0 ? "N" + String(~y) : "S" + String(y));
+//     return result;
+// }
+    
+// /** @returns boolean - do we have visibility in the room this point belongs to? */
+// isVisible() {
+//     let name = this.getRoomName();
+//     return (Game.rooms[name] !== undefined);			
+// }
+
 Room.prototype.roomManager = function() {
     if(this._roomManager === undefined) {
         // if(this.controller && this.controller.my) {
@@ -10,6 +49,25 @@ Room.prototype.roomManager = function() {
     }
 
     return this._roomManager;
+}
+
+Room.prototype.GetPrimaryLab = function() {
+    let room = this;
+    return(Game.getObjectById(room.memory.primaryLab));
+}
+
+Room.prototype.GetSecondaryLab = function() {
+    let room = this;
+    return(Game.getObjectById(room.memory.secondaryLab));
+}
+
+Room.prototype.GetTertiaryLabs = function() {
+    let room = this;
+    let labs = [];
+    for (let lab of room.memory.tertiaryLab) {
+        labs.push(Game.getObjectById(lab));
+    }
+    return(labs);
 }
 
 // room.prototype.factory = 
@@ -37,6 +95,13 @@ Room.prototype.powerSpawn = function() {
 
     return this._powerSpawn;
 }
+
+
+// room.prototype.spawn = function() {
+//     if(this._spawn === undefined) {
+//         this._spawn = Object.values(Game.spawns).filter(spawn => spawn.room == this);
+//     }
+// }
 
 Room.prototype.nuker = function() {
     if(this._nuker === undefined) {

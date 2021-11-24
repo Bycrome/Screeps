@@ -11,16 +11,16 @@ module.exports = class Links {
     }
 
     run(roomDefcon, spawns) {
-        this.manageLast();
-        this.manageTransfer();
-        this.manageHopper();
+        // this.manageLast();
+        // this.manageTransfer();
+        // this.manageHopper();
         if (roomDefcon >= 5) {
             
-            this.manageHarvester();
+            // this.manageHarvester();
 
             if (this.room.controller.level < 4) {
-                this.manageUpgraders();
-                this.manageBuilders();
+                // this.manageUpgraders();
+                // this.manageBuilders();
             }
             
             if (this.harvesterSatisfied) {
@@ -28,16 +28,14 @@ module.exports = class Links {
                 // this.manageConstrction();
 
                 if (this.room.controller.level >= 3) {
-                    this.manageUpgraders();
+                    // this.manageUpgraders();
                 }
 
-                this.manageBuilders();
+                // this.manageTransporters();
 
-                this.manageTransporters();
+                // this.manageMineralHarvester();
 
-                this.manageMineralHarvester();
-
-                this.manageBuilders();
+                // this.manageBuilders();
                 
                 // this.manageJew();
 
@@ -59,10 +57,10 @@ module.exports = class Links {
             //     this.manageJew();
             // }
         }
-        else if (roomDefcon < 4) {
-            // spawn defender
-            this.manageDefnder();
-        }
+        // else if (roomDefcon < 4) {
+        //     // spawn defender
+        //     this.manageDefnder();
+        // }
         
     }
 
@@ -105,9 +103,7 @@ module.exports = class Links {
     manageRampartUpgraders() {
         if (this.room.storage && this.room.storage.store[RESOURCE_ENERGY] > 500000 && helper.GetAmountOfRoleTargeting("builder", this.room.name) < 1) {
                 spawnHelper.spawn(this.spawns, helper.BuildBody([WORK, CARRY, MOVE], this.room, null), helper.nameScreep("Builder"), { memory: { role: 'builder', target: this.room.name } });   
-            // }
         }
-        
     }
     manageBuilders() {
         var constructionSites = this.room.find(FIND_CONSTRUCTION_SITES);

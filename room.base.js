@@ -32,7 +32,11 @@ const baseVisual = {
     "power spawn": "⚡"
 }
 
+const MAX_CONSTRUCTION_SITES = 10;
+
 module.exports = {
+
+    // make class make constructor store the amount of construction sites in room
 
     manageBase(room) {
         let flag = Game.flags[room.name]
@@ -43,15 +47,22 @@ module.exports = {
             Game.rooms[room.name].createFlag(flag.pos.x-2, flag.pos.y-2, room.name+" TRANSFER IDLE", COLOR_GREY, COLOR_GREY);
         }
 
-        // let level = room.controller.level ? room.controller.level || 0;
+        let constructionSites = room.find(FIND_CONSTRUCTION_SITES);
+        let constructionSitesCount = constructionSites.length;
+
+        console.log(constructionSitesCount);
         
+        if (constructionSitesCount >= MAX_CONSTRUCTION_SITES) return;
+
+        constructionSitesCount = this.buildPrimary(room, flag.pos, constructionSitesCount);
+        constructionSitesCount = this.buildSecondary(room, flag.pos, constructionSitesCount);
+        constructionSitesCount = this.buildTertiary(room, flag.pos, constructionSitesCount);
+
         this.newBase(room, flag.pos);
      
-        // room.find(FIND_SOURCES).forEach(source => {
-        //     if (source) { 
-        //         this.buildRoad(room. flag.pos, source);
-        //     }
-        // });
+        this.test(room);
+
+
         
         // this.visual(room, flag.pos);
 
@@ -59,23 +70,53 @@ module.exports = {
         
         
         // this.controllerShield(room, flag.pos);
+
+        
+        if (room.controller.level < 6) return; 
+
+        room.find(FIND_MINERALS)[0].pos.createConstructionSite(STRUCTURE_EXTRACTOR);
         
     },
-    
-    // locations.push(room.controller);
-        // console.log(locations.length)
-        // locations.push(room.controller);
 
+    build(room, center, locations, structureType, constructionSitesCount) {
+        for (location of locations) {
+            if (room.createConstructionSite(center.x+base[location]["x"], center.y+base[location]["y"], structureType) == OK) constructionSitesCount++;
+            if (constructionSitesCount >= MAX_CONSTRUCTION_SITES) return true;
+        }
+        return false;
+    },
+
+    buildPrimary(room, center, constructionSitesCount) {
+        
+        
+        console.log(base["spawn"])
+
+        console.log(base["extension"])
+        
+    },
+
+    buildSecondary(room, center, constructionSitesCount) {
+
+        console.log(base["storage"])
+        
+    },
+
+    buildTertiary(room, center, constructionSitesCount) {
+        console.log(base["road"])
+        console.log(base["rampart"])
+    },
 
     test(room) {
+
+        // if ((MAX_CONSTRUCTION_SITES - Object.keys(Game.constructionSites).length) < 10) return
+
+
+        let placedSites = 0;
         locations = room.find(FIND_SOURCES)
         locations = locations.concat(room.find(FIND_MINERALS));
         locations.push(room.controller);
         let origin = Game.flags[room.name];
-        // let origin = new RoomPosition(33, 28, 'W7N4');
 
-
-        // check range
         goal = {pos: origin.pos, range: 7};
 
 
@@ -111,7 +152,7 @@ module.exports = {
                     }
 
                     let constructionSites = room.find(FIND_MY_CONSTRUCTION_SITES, {
-                        filter: s => s.structureType != STRUCTURE_ROAD && s.structureType != STRUCTURE_RAMPART
+                        filter: s => s.structureType != STRUCTURE_ROAD && s.structureType != STRUCTURE_RAMPART && s.structureType != STRUCTURE_CONTAINER
                     })
 
                     for (let site of constructionSites) {
@@ -120,7 +161,7 @@ module.exports = {
                     }
 
                     let structures = room.find(FIND_STRUCTURES, {
-                        filter: s => s.structureType != STRUCTURE_ROAD && s.structureType != STRUCTURE_RAMPART
+                        filter: s => s.structureType != STRUCTURE_ROAD && s.structureType != STRUCTURE_RAMPART && s.structureType != STRUCTURE_CONTAINER
                     })
 
                     for (let structure of structures) {
@@ -132,15 +173,19 @@ module.exports = {
                 }
             }).path;
 
-            room.visual.poly(path, { stroke: COLOR_RED, strokeWidth: .15, opacity: 1, lineStyle: 'normal' })
+            room.visual.poly(path, { stroke: COLOR_RED, strokeWidth: .15, opacity: 1, lineStyle: 'normal' });
 
-            // for (let pos of path) {
+            // new RoomVisual(room.name).text("🥛", (path[0]["x"]), (path[0]["y"])+0.25, {color: 'green', font: 0.8});             
+            room.createConstructionSite(path[0]["x"]), (path[0]["y"], STRUCTURE_CONTAINER)
 
-            //     if (placedSites < 10 && room.createConstructionSite(pos.x, pos.y, STRUCTURE_ROAD) == 0) placedSites++
-            // }
+            for (let pos of path) {
+                if (placedSites < 10 && room.createConstructionSite(pos.x, pos.y, STRUCTURE_ROAD) == 0) placedSites++
+            }
         
         }
     },
+
+
     buildRoadTo(room, center, location) {
         // console.log(room, center, location)
         var path = room.findPath(location.pos, center, { ignoreCreeps: true });
@@ -229,8 +274,8 @@ module.exports = {
     },
 
     distanceTransform(room) {
-
         if (!room.controller) return;
+
 
         let vis = new RoomVisual(room.name);
         let matrix = new PathFinder.CostMatrix();
@@ -284,6 +329,13 @@ module.exports = {
             }
         }
     
+        if (pos == undefined) {
+            room.memory.baseLocation = null;
+        }
+        else {
+            room.memory.baseLocation = pos;
+        }
+        
         return (pos);
     }
 
