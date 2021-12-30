@@ -69,7 +69,7 @@ module.exports = {
         // if (storage && storage.store[RESOURCE_ENERGY] > 150000 * room.memory.sources.length) return false
         
         let repairTarget = room.find(FIND_STRUCTURES, {
-            filter: s => (s.structureType == STRUCTURE_ROAD && s.hits < s.hitsMax) || (s.structureType == STRUCTURE_RAMPART && s.hits <= 25000)
+            filter: s => (s.structureType == STRUCTURE_ROAD && s.hits < s.hitsMax) || (s.structureType == STRUCTURE_RAMPART && s.hits <= 25000) || (s.structureType == STRUCTURE_CONTAINER && s.hits < s.hitsMax)
         })[0];
         
         if (!repairTarget) return false

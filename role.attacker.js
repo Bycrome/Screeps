@@ -1,5 +1,6 @@
 const boosting = require("helper.boosting");
 const movement = require("helper.movement");
+const enemy = require("helper.allyManager");
 const helper = require('helper');
 
 const prioritizedStructures = [STRUCTURE_SPAWN, STRUCTURE_TOWER];
@@ -12,8 +13,6 @@ module.exports = {
             boosting.tryBoost(creep);
             return;
         }
-
-
         // let target = AbsolutePosition.deserialize(creep.memory.target);
         
         // console.log(creep.memory.target)
@@ -34,9 +33,11 @@ module.exports = {
         }
 
 
-        // let target = ff.findClosestHostileByRange(creep.pos);
+        // let target = enemy.findClosestHostileByRange(creep.pos);
         
-        let target = creep.pos.findClosestByRange(FIND_HOSTILE_CREEPS);
+        let target = enemy.findClosestHostileByRange(creep.pos);
+
+
         if(target && creep.pos.isNearTo(target)) {
             creep.attack(target);
         }
@@ -44,18 +45,21 @@ module.exports = {
     attackRoom: function(creep, position) {
         let target;
 
-        for(let structureType of prioritizedStructures) {
-            if(target) break;
-            target = creep.pos.findClosestByRange(FIND_HOSTILE_STRUCTURES, { filter: (s) => s.structureType == structureType });
+        if (prioritizedStructures.length > 0) {
+            for(let structureType of prioritizedStructures) {
+                if(target) break;
+                target = enemy.findClosestStructureByRange(creep.pos, { filter: (s) => s.structureType == structureType });
+            }
+        }
+
+
+        
+        if(!target) {
+            target = enemy.findClosestHostileByRange(creep.pos, { filter: (c) => c.pos.x != 0 || c.pos.x != 49 || c.pos.y != 49 || c.pos.y != 0});
         }
 
         if(!target) {
-            // target = ff.findClosestHostileByRange(creep.pos);
-            target = creep.pos.findClosestByRange(FIND_HOSTILE_CREEPS, { filter: (c) => c.pos.x != 0 || c.pos.x != 49 || c.pos.y != 49 || c.pos.y != 0});
-        }
-
-        if(!target) {
-            target = creep.pos.findClosestByRange(FIND_HOSTILE_STRUCTURES, { filter: (s) => s.structureType != STRUCTURE_CONTROLLER});
+            target = enemy.findClosestStructureByRange(creep.pos, { filter: (s) => s.structureType != STRUCTURE_CONTROLLER && s.structureType != STRUCTURE_RAMPART});
         }
         
 

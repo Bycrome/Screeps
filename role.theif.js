@@ -20,9 +20,10 @@ module.exports = {
     
             creep.memory.full = true
         }
-        else {
-            creep.memory.full = false;
+        else if (creep.memory.full == undefined) {
+            creep.memory.full = false
         }
+        
 
         if (creep.memory["full"]) {
             if(creep.memory.room && creep.room.name !== creep.memory.room) {
@@ -71,5 +72,5 @@ module.exports = {
 
             }
         }
-    }
+    },
 }

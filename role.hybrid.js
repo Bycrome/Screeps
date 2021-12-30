@@ -1,5 +1,6 @@
 const boosting = require("helper.boosting");
 const movement = require("helper.movement");
+const enemy = require("helper.allyManager");
 const helper = require('helper');
 
 const prioritizedStructures = [STRUCTURE_SPAWN, STRUCTURE_TOWER];
@@ -7,10 +8,10 @@ const prioritizedStructures = [STRUCTURE_SPAWN, STRUCTURE_TOWER];
 module.exports = {
     run: function(creep) {
 
-        if(!creep.ticksToLive) {
-            // module.exports.prespawningOperations(creep);
-            return;
-        }
+        // if(!creep.ticksToLive) {
+        //     // module.exports.prespawningOperations(creep);
+        //     return;
+        // }
         
         if(creep.ticksToLive == CREEP_LIFE_TIME - 1) creep.notifyWhenAttacked(false);
 
@@ -24,8 +25,9 @@ module.exports = {
             creep.heal(creep);
         }
         
-        const HOSTILE_CREEPS = creep.pos.findInRange(FIND_HOSTILE_CREEPS, 3);
-        const HOSTILE_STRUCTURES = creep.pos.findInRange(FIND_HOSTILE_STRUCTURES, 3);
+
+        const HOSTILE_CREEPS = enemy.findHostilesInRange(creep.pos, 3);
+        const HOSTILE_STRUCTURES = enemy.findHostileStructuresInRange(creep.pos, 3);
         const targets = HOSTILE_CREEPS.concat(HOSTILE_STRUCTURES);
 
         if(targets.length > 0) {
@@ -58,18 +60,18 @@ module.exports = {
         if (prioritizedStructures.length > 0) {
             for(let structureType of prioritizedStructures) {
                 if(target) break;
-                target = creep.pos.findClosestByRange(FIND_HOSTILE_STRUCTURES, { filter: (s) => s.structureType == structureType });
+                target = enemy.findClosestStructureByRange(creep.pos, { filter: (s) => s.structureType == structureType });
             }
         }
 
 
         
         if(!target) {
-            target = creep.pos.findClosestByRange(FIND_HOSTILE_CREEPS, { filter: (c) => c.pos.x != 0 || c.pos.x != 49 || c.pos.y != 49 || c.pos.y != 0});
+            target = enemy.findClosestHostileByRange(creep.pos, { filter: (c) => c.pos.x != 0 || c.pos.x != 49 || c.pos.y != 49 || c.pos.y != 0});
         }
 
         if(!target) {
-            target = creep.pos.findClosestByRange(FIND_HOSTILE_STRUCTURES, { filter: (s) => s.structureType != STRUCTURE_CONTROLLER && s.structureType != STRUCTURE_RAMPART});
+            target = enemy.findClosestStructureByRange(creep.pos, { filter: (s) => s.structureType != STRUCTURE_CONTROLLER && s.structureType != STRUCTURE_RAMPART});
         }
         
 
@@ -80,7 +82,10 @@ module.exports = {
         // else 
         if(target) {
             // module.exports.attack(creep, target);
-            creep.moveTo(target);
+            let move = creep.moveTo(target);
+            if (move === ERR_NO_PATH) {
+                creep.rangedMassAttack();
+            }
         } else {
             module.exports.aggressiveMove(creep, position);
         }

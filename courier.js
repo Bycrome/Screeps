@@ -1,4 +1,5 @@
 var helper = require('helper');
+const movement = require("helper.movement");
 
 module.exports = {
     transport(creep) {
@@ -18,7 +19,45 @@ module.exports = {
             helper.tryElseMove(creep, container, "#800080", "withdraw");
         }
         else {
-            helper.tryElseMove(creep, Game.rooms[creep.memory.room].storage, "#800080", "transfer");
+            if (Game.rooms[creep.memory.room] && Game.rooms[creep.memory.room].storage != undefined) {
+                // let attempt = creep transfer to storage
+                let attempt = creep.transfer(Game.rooms[creep.memory.room].storage, RESOURCE_ENERGY);
+                if(attempt == ERR_NOT_IN_RANGE) {
+                    // creep.say('t')
+                    creep.moveTo(Game.rooms[creep.memory.room].storage);
+                }
+                // else if (attempt == ERR_NO_PATH) {
+                //     creep.say('e')
+                //     let container = creep.pos.findClosestByPath(FIND_STRUCTURES, {function(structure) {structure.type != STRUCTURE_STORAGE && structure.store[RESOURCE_ENERGY] > 0}});
+                //     helper.tryElseMove(creep, container, "#800080", "transfer");
+                // }
+            }
+            else {
+                // find any container in Game.rooms[creep.memory.room]
+                if(creep.memory.target && creep.room.name !== creep.memory.room) {
+                    movement.moveToRoom(creep, creep.memory.room);
+                    return;
+                } else if(movement.isOnExit(creep)) {
+                    movement.leaveExit(creep);
+                }
+                else {
+                    // find closest container by path
+                    let container = creep.pos.findClosestByPath(FIND_STRUCTURES, {
+                        filter: (structure) => {
+                            return ((structure.structureType == STRUCTURE_CONTAINER || structure.structureType == STRUCTURE_EXTENSION || structure.structureType == STRUCTURE_SPAWN) && structure.store.getFreeCapacity() > 0);
+                        }
+                    });
+
+
+                    // let container = creep.pos.findClosestByPath(FIND_STRUCTURES, {function(structure) {structure.type == STRUCTURE_CONTAINER && stucture.store.getFreeCapacity() > 0}});
+                    // console.log(container)
+                    // let container = Game.rooms[creep.memory.room].find(FIND_STRUCTURES, {function(stucture) {stucture.store.getFreeCapacity() > 0}});
+                    helper.tryElseMove(creep, container, "#800080", "transfer");
+    
+                    
+                }
+                
+            }
         }
     
         

@@ -10,6 +10,9 @@ const roomCreeps = require('room.creeps');
 const roomCreepSpawner = require('room.creepSpawner');
 const roomExpansion = require('room.expansion');
 const roomCache = require('room.cache');
+const scientist = require('role.scientist');
+
+const enemy = require("helper.allyManager");
 
 const cache = require('cache');
 
@@ -21,6 +24,8 @@ module.exports = class roomManager {
         if (this.room.controller) {
             this.room.memory.controllerLevel = this.room.controller.level || null;
         }
+
+        room.memory.lastScouted = Game.time;
 
         // console.log(Game.rooms["W3N1"].controller.owner.username)
         
@@ -43,6 +48,7 @@ module.exports = class roomManager {
         roomCache.owner(room);
         roomCache.labs(room);
         roomCache.links(room);
+        roomCache.mineral(room);
 
         cache.init.sources(room);
         cache.init.containers(room);
@@ -55,6 +61,9 @@ module.exports = class roomManager {
             this.lastTerminal = Game.time;
             this.lastBase = Game.time;
             this.lastGeneral = Game.time;
+            // this.lastExtraCreep = Game.time+2;
+            this.lastExtraCreep = Game.time+CREEP_LIFE_TIME;
+// this.lastExtraCreep = Game.time+2
         }
 
         this.roomCreeps = new roomCreeps(room);
@@ -75,34 +84,61 @@ module.exports = class roomManager {
             cache.update.sourceContainers(room);
             cache.update.extractor(room);
         }
-
-        if (this.spawns.length > 0 && this.room.controller.my) {
+        // console.log(room, Memory.global.communes.indexOf(room.name) != -1)
+        if (Memory.global.communes.indexOf(room.name) != -1) {
+            let spawns = Object.values(Game.spawns).filter(spawn => spawn.room == room);
 
             // var before = Game.cpu.getUsed();
-            this.spawner.run(this.roomDefcon, this.spawns, room)
+            this.spawner.run(this.roomDefcon, spawns, room)
             // var used = Game.cpu.getUsed() - before;
             // console.log("new:",used)
             
-            if ((Game.time - this.lastTerminal) - (this.roomNumber*9) > 1000) {
-                console.log('DEBUG:', "TERMINAL RUNNING");
-                this.terminal.run(room, room.terminal);
-                this.lastTerminal = Game.time;
+            if (Game.time > this.lastExtraCreep) {
+                console.log("DEBUG:","NEW TEST")
+                this.lastExtraCreep = Game.time+CREEP_LIFE_TIME;
+                // this.lastExtraCreep = Game.time+10
+                // if (this.roomNumber == 0) {
+                    
+                    if (!room.memory.reaction) {
+                        scientist.getReaction(room, room.find(FIND_MY_STRUCTURES, {filter: (structure) => {return (structure.structureType == STRUCTURE_LAB)}}))
+                    }
+
+                    // if (scientist.getReaction(room, room.find(FIND_MY_STRUCTURES, {filter: (structure) => {return (structure.structureType == STRUCTURE_LAB)}})) != undefined) {
+                    //     console.log("test", room.name)
+                    //     spawnScientist(room.name)
+                    // }
+                // }
+                
+
             }
 
+            // if ((Game.time - this.lastTerminal) - (this.roomNumber*9) > 10) {
+            
+
             if ((Game.time - this.lastGeneral) - (this.roomNumber*8) > 500) {
-                console.log('DEBUG:', "EXPANSION AND NUKE RUNNING");
-                this.general(room);
+                // console.log('DEBUG:', "EXPANSION AND NUKE RUNNING");
                 this.lastGeneral = Game.time;
+                this.general(room);
+                
             }
 
             if ((Game.time - this.lastBase) - this.roomNumber > 100) {
-                console.log('DEBUG:', "BASE CODE RUNNING",Game.time);
-                roomBase.manageBase(room);
+                // console.log('DEBUG:', "BASE CODE RUNNING",Game.time);
                 this.lastBase = Game.time;
+                roomBase.manageBase(room);
+                
             }
 
-            let hostiles = room.find(FIND_HOSTILE_CREEPS);
+            let hostiles = enemy.findHostiles(room);
 
+            if (hostiles.length == 0 && ((Game.time - this.lastTerminal) - (this.roomNumber*9) > 50)) {
+            // if ((Game.time - this.lastTerminal) - (this.roomNumber*9) > 200) {
+                // console.log('DEBUG:', "TERMINAL RUNNING ",room.name);
+                this.lastTerminal = Game.time;
+                if (room.terminal) this.terminal.run(room, room.terminal);
+                
+            }
+            
             if (hostiles.length != 0) {
                 // if only small raid
                 if (hostiles.length <= 2) {
@@ -110,6 +146,17 @@ module.exports = class roomManager {
                 }
                 else {
                     this.roomDefcon = 3;
+                }
+
+                if (room.controller.level > 4) {
+                    if (enemy.findHostilesInRange(Game.flags[room.name].pos, 5).length > 0) {
+                        this.roomDefcon = 2;
+                        
+                        if (room.controller.safeModeAvailable && !room.controller.safeMode) {
+                            room.controller.activateSafeMode();
+                        }
+                        
+                    }
                 }
             }
             else if (this.roomDefcon != 5){

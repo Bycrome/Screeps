@@ -1,9 +1,11 @@
+const enemy = require("helper.allyManager");
+
 module.exports = {
     run: function(creep) {
 
         creep.say("Broke")
 
-        let closestHostile = creep.pos.findClosestByRange(FIND_HOSTILE_CREEPS);
+        let closestHostile = enemy.findClosestHostileByRange(creep.pos, { filter: (c) => c.pos.x != 0 || c.pos.x != 49 || c.pos.y != 49 || c.pos.y != 0});
 
         creep.say("No Enemy")
 

@@ -1,8 +1,9 @@
 const movement = require("helper.movement");
 const helper = require('helper');
 const c = require("config");
-
-const highPriorityStructures = [STRUCTURE_SPAWN, STRUCTURE_STORAGE, STRUCTURE_TERMINAL, STRUCTURE_EXTENSION];
+// STRUCTURE_TERMINAL
+// STRUCTURE_EXTENSION
+const highPriorityStructures = [STRUCTURE_SPAWN, STRUCTURE_STORAGE, STRUCTURE_EXTRACTOR];
 
 module.exports = {
     run: function(creep) {
@@ -119,8 +120,40 @@ module.exports = {
     },
     harvestEnergy: function(creep) {
         // if (creep.room.storage && creep.room.storage.store[RESOURCE_ENERGY] > 50000) {
-        if (creep.room.storage && creep.room.storage.store[RESOURCE_ENERGY] > 500) {
+        if (creep.room.storage && creep.room.storage.store[RESOURCE_ENERGY] > 2000) {
             helper.tryElseMove(creep, creep.room.storage, "red", "withdraw");
+        }
+        else if (creep.room.memory.containers) {
+            // find closeset container with energy
+            var container = creep.pos.findClosestByRange(FIND_STRUCTURES, {
+                filter: (structure) => {
+                    return (structure.structureType == STRUCTURE_CONTAINER && structure.store[RESOURCE_ENERGY] > 1000);
+                }
+            });
+            if (container) {
+                helper.tryElseMove(creep, container, "red", "withdraw");
+            }
+            else {
+                let active = creep.pos.findClosestByPath(creep.room.find(FIND_SOURCES_ACTIVE));
+                if (active) {
+                    helper.tryElseMove(creep, active, "yellow", "harvest");
+                }
+                else {
+                    let dropped = creep.pos.findClosestByPath(FIND_DROPPED_RESOURCES);
+                    if (dropped) {
+                        // dropped.sort((a, b) => b.amount - a.amount);
+                        if (creep.pickup(dropped) == ERR_NOT_IN_RANGE) {
+                            creep.moveTo(dropped);
+                        }
+                        creep.say("dropped")
+                    }
+                    else {
+                        if (Object.keys(creep.store).includes(RESOURCE_ENERGY)) {
+                            creep.memory.full = true;
+                        }
+                    }
+                }
+            }
         }
         else {
             helper.tryElseMove(creep, creep.pos.findClosestByPath(creep.room.find(FIND_SOURCES_ACTIVE)), "yellow", "harvest");

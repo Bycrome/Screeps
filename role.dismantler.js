@@ -9,6 +9,13 @@ const blacklistedStructures = [];
 module.exports = {
     run: function(creep) {
 
+
+        if (Game.time % 2 == 0) {
+            creep.say('testing', true)
+        }
+        else {
+            creep.say('new script', true)
+        }
         
         if (creep.ticksToLive == undefined) {
             return
@@ -35,7 +42,9 @@ module.exports = {
 
         let targetName = creep.memory.target;
         if(creep.room.name !== targetName) {
+            if(!module.exports.shouldWait(creep)) {
                 movement.moveToRoom(creep, targetName);
+            }
         }
         else {
             let target = new RoomPosition(25, 25, creep.memory.target);
@@ -119,21 +128,22 @@ module.exports = {
             if(movement.isWithin(creep, 5, 5, 45, 45)) return false;
         }
 
-        if(creep.memory.waitFor === true) {
+
+        if(!!creep.memory.waitFor && creep.room.controller && creep.room.controller.my) {
             console.log("Attacker " + creep.name + " waiting for follower to be spawned. (" + creep.room.name + ")");
-            creep.say("need medic")
             if (helper.GetAmountOfRoleTargeting("healer", creep.name) < 1) {
+                creep.say("need medic")
                 var spawns = Object.values(Game.spawns).filter(spawn => spawn.room == creep.room);
                 var name = helper.nameScreep("Medic")
                 creep.memory.waitFor = name;
-                helper.spawn(spawns, helper.BuildBody([MOVE, MOVE, HEAL, HEAL], creep.room, null), name, { memory: { role: 'healer', target: creep.name}});
-                // helper.spawn(spawns, helper.BuildBody([TOUGH, MOVE, HEAL, HEAL, HEAL], creep.room, null), name, { memory: { role: 'healer', target: creep.name, boosts: {heal:true, move:true, tough:true}}});
+                helper.spawn(spawns, helper.BuildBody([MOVE, HEAL, HEAL], creep.room, null), name, { memory: { role: 'healer', target: creep.name}});
+                // helper.spawn(spawns, helper.BuildBody([TOUGH, MOVE, MOVE, MOVE, HEAL], creep.room, null), name, { memory: { role: 'healer', target: creep.name}});
+                return true;
             }
-
-            return true;
         }
 
         let waitFor = Game.creeps[creep.memory.waitFor];
+       
         if(!waitFor) return false;
 
         return !creep.pos.isNearTo(waitFor);

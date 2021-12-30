@@ -1,4 +1,6 @@
 const helper = require('helper');
+const roomBase = require('room.base');
+const enemy = require("helper.allyManager");
 
 const BODY_CONFIG = [TOUGH,CARRY,WORK,CLAIM,ATTACK,RANGED_ATTACK,MOVE,HEAL];
 
@@ -14,43 +16,143 @@ module.exports = class roomCreepSpawner {
 
         this.room = room;
 
-        this.getCreeps(spawns);
+        this.getCreeps(spawns, room);
 
 
-        this.manageLast(spawns);
-
+        if (this.manageLast(spawns, room)) return;
 
         // console.log(room.name)
         // console.log(JSON.stringify(this.roomCreeps))
 
-        if (roomDefcon < 4) this.manageDefnder(spawns);
+        if (roomDefcon < 4) this.manageDefnder(spawns, room);
 
-        this.manageUpgrader(spawns);        
-        this.manageBuilders(spawns);
+        if (this.manageUpgrader(spawns, room)) return;
+
+        this.manageRemote(spawns, room);
+
+        this.manageBuilders(spawns, room);
+        
+        if (room.controller.level < 3) return;
+        
+        this.manageHarvester(spawns, room);
+
+        if (room.controller.level == 3) this.manageTempTransporters(spawns, room);
+
+        if (roomDefcon == 5) this.manageRampartUpgraders(spawns, room);
 
         if (!room.storage && !room.terminal) return;
 
-        this.manageHopper(spawns);
-        this.manageTransfer(spawns);
+        this.manageHopper(spawns, room);
+        this.manageTransfer(spawns, room);
 
         if (roomDefcon < 5) return;
+
         
-        this.manageHarvester(spawns);
-        this.manageTransporters(spawns);
+        this.manageTransporters(spawns, room);
+
+        if (this.manageTransfer(spawns, room)) return;
 
         if (room.controller.level < 6) return;
 
-        // this.manageMineralHarvester(spawns);
+        this.manageScientist(spawns, room);
+
+        this.manageMineralHarvester(spawns, room);
+        this.manageMineralHauler(spawns, room);
+    
 
     }
 
+    manageRemote(spawns, room) {
+        if (!room.memory.remote || room.memory.remote.length <= 0) return
+        for (let remote of room.memory.remote) {
+            // observe room if is not visible
+            if (!Game.rooms[remote] && !this.manageRoleTargeting("scout", remote)) {
+                this.spawn(room, spawns, [MOVE], this.nameCreep("Observer", remote), { memory: { role: 'scout', room: room.name, target:remote, operation:"observe" } });
+                return
+            }
+            else if (!Game.rooms[remote]) continue;
+            else {
+                let enemies = enemy.findHostiles(Game.rooms[remote]);
+                if (enemies.length == 1 && enemies[0].body.length == 1 && !this.manageRoleTargeting("attacker", remote)) this.spawn(room, spawns, [ATTACK, MOVE], this.nameCreep("Bycrome", remote), { memory: { role: 'attacker', room: room.name, target:remote } });
+                else if (enemies.length > 0) {
+                    // if the enemy is an invader send a hybrid
+                    if (enemies[0].owner.username == "Invader") {
+                        spawnHybrid(room.name, remote.name,false);
+                    }
+                    else {
+                        removeRemote(room.name, remote.name);
+                    }
+                }
 
-    harvesterBuilder(limit) {
+                if (Game.rooms[remote].controller && (Game.rooms[remote].controller.reservation == undefined || Game.rooms[remote].controller.reservation < 1500) && !this.manageRoleTargeting("reserver", remote)) this.spawn(room, spawns, this.BuildBody([CLAIM, MOVE], room, null), this.nameCreep("Reserver", remote), { memory: { role: 'reserver', room: room.name, target:remote} });
+
+                if (Game.time % 75 == 0) {
+                    for (let source of Game.rooms[remote].find(FIND_SOURCES)) {
+                        // console.log('testing123')
+                        roomBase.buildRoadTo(room, source);
+                    }
+
+                    let builder = this.manageRoleTargeting("builder", remote);
+                    if (!builder || builder.length < 3) this.manageBuilders(spawns, room, Game.rooms[remote]);
+                    
+                }
+
+                // find enemies
+               
+    
+                this.manageHarvester(spawns, room, Game.rooms[remote]);
+                this.manageTransporters(spawns, room, Game.rooms[remote]);
+            }
+            
+        
+           
+
+        }
+
+            // if (this.manageRole("remoteHarvester", 1)) {
+            //     this.manageRole("remoteTransporter", 1);
+            // }
+        
+    }
+
+    manageTempTransporters(spawns, room) {
+        if (!room.memory.remote || room.memory.remote.length <= 0) return;
+        if (!room.memory.sourceContainers) return;
+        
+        if (this.GetAmountOfRoleWithRoom("Harvester", room.name) < room.memory.sources.length) return;
+
+        for (var source in room.memory.sourceContainers) {
+            if (!room.memory.sourceContainers[source]) continue;
+            if (helper.OccupiedSource(room.memory.sourceContainers[source], "hauler") < 2) {
+                let container = room.controller.pos.findInRange(FIND_STRUCTURES, 1);
+                container = container.filter(structure => structure.structureType == STRUCTURE_CONTAINER).shift();
+                if (container) {
+                    this.spawn(room, spawns, this.BuildBody([CARRY, CARRY, MOVE], room, 4), this.nameCreep("transport", room.name), { memory: { role: 'hauler', target: room.memory.sourceContainers[source], to:container.id, room: room.name } });
+                }
+            }
+        }
+    }
+
+    manageScientist(spawns, room) {
+        if(this.manageRole("scientist", 1)) {
+            if (room.memory.reaction && room.terminal != undefined && ((Object.keys(room.storage.store).includes(RESOURCE_ENERGY) && room.storage.store[RESOURCE_ENERGY] > 20000) || (Object.keys(room.terminal.store).includes(RESOURCE_ENERGY) && room.terminal.store[RESOURCE_ENERGY] > 20000))) {
+                this.spawn(room, spawns, [CARRY, MOVE], this.nameCreep("Scientist", room.name), { memory: { role: 'scientist', room: room.name} });
+            }
+        }
+    }
+
+    manageRampartUpgraders(spawns, room) {
+        if (room.storage && room.storage.store[RESOURCE_ENERGY] > 40000 && this.manageRole("builder", 1)) {
+            this.spawn(room, spawns, this.BuildBody([WORK, CARRY, MOVE], room, room.storage.store[RESOURCE_ENERGY]/25000), this.nameCreep("Builder", room.name), { memory: { role: 'builder', target: room.name , room: room.name} });   
+        }
+    }
+
+    harvesterBuilder(limit, room) {
         let body = [CARRY];
         let cost = BODYPART_COST[CARRY];
         let work = 0;
         let move = 0
-        while (cost < this.room.energyAvailable && work < limit) {
+        while (cost < room.energyAvailable && work < limit && body.length < 50) {
             if (move < work/2) {
                 move++;
                 body.push(MOVE);
@@ -65,90 +167,108 @@ module.exports = class roomCreepSpawner {
         return body;    
     }
 
-    manageHarvester(spawns) {
-        var possible = this.room.memory.sources;
-        if (!this.manageRole("Harvester", possible.length)) return;
-       
+    manageHarvester(spawns, room, target = room) {
+        var possible = target.memory.sources;
+        // console.log(room != target, target)
+        if (room == target && !this.manageRole("Harvester", possible.length)) return(true);
+        // console.log(room.name + " " + room.memory.sources.length)
         possible.forEach(source => {
-            if (helper.OccupiedSource(source, "Harvester") < 1) {
-                this.spawn(spawns, this.harvesterBuilder(10), this.nameCreep("Harvester", this.room.name), { memory: { role: 'Harvester', target: source, room: this.room.name }});
+            let creep = this.manageRoleTargeting("Harvester", source);
+            // if (!creep || (creep.ticksToLive <= creep.body.length * 3)) {
+            if (!creep) {
+                // console.log(target, source, creep)
+                // console.log(!creep)
+                let body = this.harvesterBuilder(10, room);
+                if (body.length < 3) return;
+                this.spawn(room, spawns, body, this.nameCreep("Harvester", target.name), { memory: { role: 'Harvester', target: source, room: target.name }});
             }
         });
-        
     }
 
-    manageDefnder(spawns) {
+    manageDefnder(spawns, room) {
         if (this.manageRole("rangedDefender", 3)) {
-            this.spawn(spawns, this.BuildBody([RANGED_ATTACK, RANGED_ATTACK, MOVE], this.room, null), this.nameCreep("Defender", this.room.name), { memory: { role: 'rangedDefender', room: this.room.name} });   
+            this.spawn(room, spawns, this.BuildBody([RANGED_ATTACK, RANGED_ATTACK, MOVE], room, null), this.nameCreep("Defender", room.name), { memory: { role: 'rangedDefender', room: room.name} });   
         }
     }
-
-    manageMineralHarvester(spawns) {
-        if(this.manageRole("MineralHarveseter", 1)) {
-            if (this.room.memory.extractor && this.room.memory.mineralActive && this.room.memory["minerals"][0] && this.room.terminal && this.room.terminal.store[this.room.memory["mineralsTypes"][0]] < 100000) {
-                this.spawn(spawns, this.BuildBody([WORK, CARRY, MOVE], this.room, null), this.nameCreep("MineralHarveseter", this.room.name), { memory: { role: 'MineralHarveseter', target: this.room.memory["minerals"][0] } });
+    manageMineralHarvester(spawns, room) {
+        if (!this.manageRole("MineralHarveseter", 1)) return;
+        let mineral = room.memory["minerals"][0];
+        if (!room.memory.extractor || !room.memory.mineralActive || !mineral || !room.terminal ||  room.terminal.store[room.memory["mineralsTypes"][0]] > 50000) return;
+        let creep = this.manageRoleTargeting("MineralHarveseter", mineral);
+        if (!creep) {
             
-            }
-            // this.spawn(spawns, this.harvesterBuilder(32), this.nameCreep("MineralHarveseter", this.room.name), { memory: { role: 'MineralHarveseter', target: this.room.memory["minerals"][0] } });
+            let body = this.harvesterBuilder(50, room);
+            this.spawn(room, spawns, body, this.nameCreep("MineralHarveseter", room.name), { memory: { role: 'MineralHarveseter', target: mineral } });
+        }
+    }
+    manageMineralHauler(spawns, room) {
+        if (!this.manageRole("MineralHauler", 1)) return;
+        let mineral = room.memory["minerals"][0];
+        if (!mineral || !room.memory.mineralContainer) return
+        let target = room.memory.mineralContainer[mineral];
+        if (!room.memory.extractor || !room.memory.mineralActive || !mineral || !target || !room.terminal || room.terminal.store[room.memory["mineralsTypes"][0]] > 50000) return;
+        let creep = this.manageRoleTargeting("MineralHauler", target);
+        if (!creep) {
+            this.spawn(room, spawns, this.BuildBody([CARRY, CARRY, MOVE], room, 4), this.nameCreep("MineralHauler", room.name), { memory: { role: 'MineralHauler', target: target, to: room.terminal.id } });
         }
     }
 
-    manageHopper(spawns) {
-        if (this.manageRole("Hopper", 1) && (this.room.storage || this.room.terminal) && this.room.controller.level >= 5) {
-            this.spawn(spawns, [CARRY, CARRY], this.nameCreep("Hopper", this.room.name), { memory: { role: 'Hopper', room: this.room.name} })
+    manageHopper(spawns, room) {
+        if (this.manageRole("Hopper", 1) && (room.storage || room.terminal) && room.controller.level >= 5) {
+            this.spawn(room, spawns, [CARRY, CARRY], this.nameCreep("Hopper", room.name), { memory: { role: 'Hopper', room: room.name} })
         }
     }
 
-    manageTransfer(spawns) {
-        if (this.manageRole("Transfer", 1) && this.room.energyCapacityAvailable >= 800 && (this.GetAmountOfRoleWithRoom("Harvester")  > 1)) {
-            this.spawn(spawns, this.BuildBody([CARRY, CARRY, MOVE], this.room, 4), this.nameCreep("Transfer", this.room.name), { memory: { role: 'Transfer', room: this.room.name } });
+    manageTransfer(spawns, room) {
+        if (this.manageRole("Transfer", 1) && room.energyCapacityAvailable >= 800 && (this.GetAmountOfRoleWithRoom("Harvester")  > 1)) {
+            this.spawn(room, spawns, this.BuildBody([CARRY, CARRY, MOVE], room, 4), this.nameCreep("Transfer", room.name), { memory: { role: 'Transfer', room: room.name } });
+            return true;
         }
+        return false;
     }
 
-    manageLast(spawns) {
-        if (this.manageRole("Transfer", 1) && this.manageRole("upgrader", 1)) {
-            this.spawn(spawns, [WORK, CARRY, MOVE], this.nameCreep("Upgrader", this.room.name), { memory: { role: 'upgrader', room: this.room.name} });
+    manageLast(spawns, room) {
+        if (this.manageRole("Upgrader", 1)) {
+            this.spawn(room, spawns, [WORK, CARRY, MOVE], this.nameCreep("Upgrader", room.name), { memory: { role: 'Upgrader', room: room.name} });
+            return true;
         }
+        return false;
     }
     
-    manageTransporters(spawns) {
-        if (!this.room.memory.sourceContainers || !this.room.storage) return;
-        if (this.GetAmountOfRoleWithRoom("Harvester", this.room.name) < this.room.memory.sources.length) return;
+    manageTransporters(spawns, room, target = room) {
+        if (!target.memory.sourceContainers || (room == target && !room.storage)) return;
+        
+        if (room == target && this.GetAmountOfRoleWithRoom("Harvester", target.name) < target.memory.sources.length) return;
 
-        for (var source in this.room.memory.sourceContainers) {
-            if (!!this.room.memory.sourceLinks[source] && !!this.room.memory.mainLink) continue;
-            if ((helper.OccupiedSource(this.room.memory.sourceContainers[source], "transport") < 1 || (this.room.memory.sourceDistance && helper.OccupiedSource(this.room.memory.sourceContainers[source], "transport") < Math.ceil(this.room.memory.sourceDistance[source] / 25)))) {
-                // spawnHelper.spawn(this.spawns, this.BuildBody([CARRY, CARRY, MOVE], this.room, 4), helper.nameScreep("Transporter"), { memory: { role: 'transport', target: this.room.memory.sourceContainers[source], room: this.room.name } });
-                this.spawn(spawns, this.BuildBody([CARRY, CARRY, MOVE], this.room, 4), this.nameCreep("transport", this.room.name), { memory: { role: 'transport', target: this.room.memory.sourceContainers[source], room: this.room.name } });
+        // console.log(target)
+
+        for (var source in target.memory.sourceContainers) {
+            if (!!target.memory.sourceLinks[source] && !!target.memory.mainLink) continue;
+            if (!target.memory.sourceContainers[source]) continue;
+            let num = 1;
+            if (target != room) num++;
+            if (helper.OccupiedSource(target.memory.sourceContainers[source], "transport") < num) {
+                // console.log("e",target)
+                // spawnHelper.spawn(this.spawns, this.BuildBody([CARRY, CARRY, MOVE], room, 4), helper.nameScreep("Transporter"), { memory: { role: 'transport', target: room.memory.sourceContainers[source], room: room.name } });
+                this.spawn(room, spawns, this.BuildBody([CARRY, CARRY, MOVE], room, 4), this.nameCreep("transport", target.name), { memory: { role: 'transport', target: target.memory.sourceContainers[source], room: room.name } });
             }
         }
     
     }
 
-    manageScientist(spawns) {
-        if (this.manageRole("scientist", 1)) {
-            this.spawn(spawns, [WORK, CARRY, MOVE], this.nameCreep("Scientist", this.room.name), { memory: { role: 'scientist', room: this.room.name} });
+    manageNukeOperator(spawns, room) {
+        if (helper.GetAmountOfRoleWithRoom("nukeOperator", room.name) < 1) {
+            this.spawn(room, spawns, [CARRY, CARRY, MOVE], this.nameCreep("Nuke Operator", room.name), { memory: { role: 'nukeOperator', room: room.name} });
         }
     }
 
-    manageNukeOperator(spawns) {
-        if (helper.GetAmountOfRoleWithRoom("nukeOperator", this.room.name) < 1) {
-            this.spawn(spawns, [CARRY, CARRY, MOVE], this.nameCreep("Nuke Operator", this.room.name), { memory: { role: 'nukeOperator', room: this.room.name} });
-        }
-    }
-
-    manageClaimer(spawns) {
-        var flag = Game.flags[this.room.name+" EXPANSION"];
+    manageClaimer(spawns, room) {
+        var flag = Game.flags[room.name+" EXPANSION"];
         if (flag) {
-            this.spawn(spawns, [CLAIM, MOVE, MOVE], this.nameCreep("Claimer", this.room.name), { memory: { role: 'claimer', room: this.room.name, target: (JSON.parse(JSON.stringify(flag.pos))).roomName } });
+            this.spawn(room, spawns, [CLAIM, MOVE, MOVE], this.nameCreep("Claimer", room.name), { memory: { role: 'claimer', room: room.name, target: (JSON.parse(JSON.stringify(flag.pos))).roomName } });
         }
     }
 
-    manageRampartUpgraders(spawns) {
-        if (this.room.storage && this.room.storage.store[RESOURCE_ENERGY] > 500000 && helper.GetAmountOfRoleTargeting("builder", this.room.name) < 1) {
-            this.spawn(spawns, this.BuildBody([WORK, CARRY, MOVE], this.room, null), this.nameCreep("Builder", this.room.name), { memory: { role: 'builder', target: this.room.name } });   
-        }
-    }
 
     // fix
     manageExpansionBuilder() {
@@ -159,45 +279,57 @@ module.exports = class roomCreepSpawner {
             var closest = _.sortBy(allSpawns, s => s.pos.getRangeTo(targets[0]))
 
             if (helper.GetAmountOfRoleTargeting("builder", targets[0].room.name) < 3 ) {
-                this.spawn(closest, this.BuildBody([WORK, CARRY, MOVE], this.room, null), helper.nameScreep("Builder"), { memory: { role: 'builder', target: targets[0].room.name } });
+                this.spawn(closest, this.BuildBody([WORK, CARRY, MOVE], room, null), helper.nameScreep("Builder"), { memory: { role: 'builder', target: targets[0].room.name } });
             }
         }
     }
 
     
-    manageBuilders(spawns) {
-        if (this.room.storage && this.GetAmountOfRoleWithRoom("Harvester", this.room.name) < this.room.memory.sources.length) return;
-        var constructionSites = this.room.find(FIND_CONSTRUCTION_SITES);
-        if (!this.room.storage && constructionSites.length > 0 && helper.GetAmountOfRoleTargeting("builder", this.room.name) < 4 && this.GetAmountOfRoleWithRoom("Upgrader", this.room.name) > 0) {
-            this.spawn(spawns, this.BuildBody([WORK, CARRY, MOVE], this.room, null), this.nameCreep("builder", this.room.name), { memory: { role: 'builder', target: this.room.name } });
+    manageBuilders(spawns, room, target = room) {
+        if ( room == target && room.storage && this.GetAmountOfRoleWithRoom("Harvester", room.name) < room.memory.sources.length) return;
+        var constructionSites = target.find(FIND_CONSTRUCTION_SITES);
+        if (target != room && constructionSites.length > 0) {
+            this.spawn(room, spawns, this.BuildBody([WORK, CARRY, MOVE], room, null), this.nameCreep("builder", target.name), { memory: { role: 'builder', target: target.name } });
         }
-        if (constructionSites.length > 0 && (this.GetAmountOfRoleWithRoom("Harvester", this.room.name) == this.room.memory.sources.length)) {
-            if (helper.GetAmountOfRoleTargeting("builder", this.room.name) < (constructionSites.length / 10) ) {
-                // 
-                // if (!storage || (storage && storage.store[RESOURCE_ENERGY] > 50000)) {  
-                    var max = (this.room.storage) ? (Math.floor(this.room.storage.store[RESOURCE_ENERGY] / 100000) + 1) : 1;
-                    this.spawn(spawns, this.BuildBody([WORK, CARRY, MOVE], this.room, max), this.nameCreep("builder", this.room.name), { memory: { role: 'builder', target: this.room.name } });   
-                // }
+        else {
+            if (!room.storage && constructionSites.length > 0 && helper.GetAmountOfRoleTargeting("builder", room.name) < 4 && this.GetAmountOfRoleWithRoom("Upgrader", room.name) > 0) {
+                this.spawn(room, spawns, this.BuildBody([WORK, CARRY, MOVE], room, 3), this.nameCreep("builder", room.name), { memory: { role: 'builder', target: room.name } });
+            }
+            if (constructionSites.length > 0 && (this.GetAmountOfRoleWithRoom("Harvester", room.name) == room.memory.sources.length)) {
+                if (helper.GetAmountOfRoleTargeting("builder", room.name) < (constructionSites.length / 10) ) {
+                    // 
+                    // if (!storage || (storage && storage.store[RESOURCE_ENERGY] > 50000)) {  
+                        var max = (room.storage) ? (Math.floor(room.storage.store[RESOURCE_ENERGY] / 100000) + 1) : 1;
+                        this.spawn(room, spawns, this.BuildBody([WORK, CARRY, MOVE], room, max), this.nameCreep("builder", room.name), { memory: { role: 'builder', target: room.name } });   
+                    // }
+                }
             }
         }
     }
 
-    manageUpgrader(spawns) {
-        if (this.room.controller.level == 8) {
+    manageUpgrader(spawns, room) {
+        if (room.controller.level == 8) {
             if (this.manageRole("Upgrader", 1)) {
-                this.spawn(spawns, [WORK, CARRY, MOVE], this.nameCreep("Upgrader", this.room.name), { memory: { role: 'Upgrader', room: this.room.name } });
+                this.spawn(room, spawns, [WORK, CARRY, MOVE], this.nameCreep("Upgrader", room.name), { memory: { role: 'Upgrader', room: room.name } });
+                return true
             }
         }
         else {
-            let amount = 5;
+            let amount = 10;
+            let max = 4;
 
-            if (this.room.storage) amount = (Math.floor(this.room.storage.store[RESOURCE_ENERGY] / 75000) + 1);
+            if (room.storage) {
+                amount = (Math.floor(room.storage.store[RESOURCE_ENERGY] / 50000) + 1);
+                max = null;
+            }
 
             if (this.manageRole("Upgrader", amount)) {
-                this.spawn(spawns, this.BuildBody([WORK, CARRY, MOVE], this.room, null), this.nameCreep("Upgrader", this.room.name), { memory: { role: 'Upgrader', room: this.room.name } });
+                this.spawn(room, spawns, this.BuildBody([WORK, CARRY, MOVE], room, max), this.nameCreep("Upgrader", room.name), { memory: { role: 'Upgrader', room: room.name } });
+                return true;
             }
 
         }
+        return false
     }
 
     manageRole(role, amountNeeded) {
@@ -205,6 +337,10 @@ module.exports = class roomCreepSpawner {
             return true;
         }
         return false;
+    }
+
+    manageRoleTargeting(role, target) {
+        return(Object.values(Game.creeps).find(creep => creep.memory.role == role && creep.memory.target == target));
     }
 
     GetAmountOfRoleWithRoom(role) {
@@ -255,13 +391,19 @@ module.exports = class roomCreepSpawner {
         }, 0);
     }
 
-    spawn(spawns, body, name, memory) {
-
+    spawn(room, spawns, body, name, memory) {
+        spawns = Object.values(Game.spawns).filter(spawn => spawn.room == room);
+        if (body.length == 0) return ERR_INVALID_ARGS;
         // if unable to spawn
-        if (this.bodyCost(body) > this.room.energyAvailable) return;
-
+        if (this.bodyCost(body) > room.energyAvailable) return ERR_NOT_ENOUGH_ENERGY;
+        
+        // console.log(name,"will cost",this.bodyCost(body),"currently have", room.energyAvailable)
+        // console.log("body:",body)
+        
         for (let spawn of spawns) {
-            if (spawn.spawnCreep(body, name, memory) == OK) {
+            let attempt = spawn.spawnCreep(body, name, memory);
+            // console.log(attempt)
+            if (attempt == OK) {
                 return OK;
             }
         }

@@ -6,10 +6,32 @@ module.exports = {
             sourceList.push(sources[source].id);
         }
         room.memory["sources"] = sourceList;
+
+        room.memory["sourceContainers"] = {}
+        sources.forEach(source => {
+            var inRange = source.pos.findInRange(FIND_STRUCTURES, 2).filter(a => a.structureType == STRUCTURE_CONTAINER);
+            if (inRange[0]) {
+                room.memory["sourceContainers"][source.id] = inRange[0].id
+            }
+        });
+    },
+    mineral(room){
+        if (!room.memory["mineral"]) {
+            var mineral = room.find(FIND_MINERALS).shift();
+            if (mineral) {
+                room.memory["mineral"] = {"id": mineral.id, "mineralType": mineral.mineralType, "density": mineral.density};
+            }
+            else {
+                room.memory["mineral"] = null;
+            }
+        }
     },
     owner(room) {
-        if (!room.controller) room.memory.owner = "";
-        else if (room.controller.owner && room.controller.owner.username) room.memory.owner = room.controller.owner.username;
+        if (!room.controller) room.memory.owner = undefined;
+        else {
+            if (room.controller.owner && room.controller.owner.username) room.memory.owner = room.controller.owner.username;
+            else room.memory.owner = undefined;
+        }
     },
     controller(){
 

@@ -37,10 +37,11 @@ module.exports = {
         // console.log(spawns, body, name, memory)
         spawns.forEach(spawn => {
             if (spawn.spawning == null && spawn.room.energyAvailable >= this.bodyCost(body)) {
-                spawn.spawnCreep(body, name, memory);
-                return;
+                
+                return spawn.spawnCreep(body, name, memory);
             }
         });
+        return "ERR_NO_SPAWN";
     },
     BuildBody(base, room, max) {
         var arr = [];

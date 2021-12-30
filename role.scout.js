@@ -1,8 +1,6 @@
 const movement = require("helper.movement");
 const roomBase = require('room.base');
 
-let history = [];
-
 module.exports = {
     run(creep) {
 
@@ -23,7 +21,15 @@ module.exports = {
 		if (creep.memory.target && creep.room.name == creep.memory.target) {
 			module.exports.roomEntryOperations(creep);
 		}
+	},
 
+	becomeGriefer(creep, target) {
+		creep.memory.role = "grief";
+		creep.memory.target = target;
+	},
+
+	becomeObserver(creep) {
+		creep.memory.role = "observer";
 	},
 
 	roomEntryOperations(creep) {
@@ -31,13 +37,22 @@ module.exports = {
 		creep.room.memory.lastScouted = Game.time;
 		if (creep.memory.history == undefined) creep.memory.history = [];
 		creep.memory.history.push(creep.room.name);
+
+		if (creep.memory.operation) {
+			if (creep.memory.operation == "grief") {
+				module.exports.becomeGriefer(creep);
+			}
+			else if (creep.memory.operation == "observe") {
+				module.exports.becomeObserver(creep);
+			}
+		}
 		
 		if (Room.describe(creep.room) != ROOM_STANDARD) return;
 
 		module.exports.evluateRoom(creep)
 
 		if (Game.map.getRoomLinearDistance(creep.memory.room, creep.room.name) < 4) {
-			if (creep.room.memory.sources.length == 2 && creep.room.memory.baseLocation != undefined && !Object.values(Memory.global.communes).includes(creep.room.name)) {
+			if (creep.room.memory.sources && creep.room.memory.sources.length == 2 && creep.room.memory.baseLocation != undefined && !Object.values(Memory.global.communes).includes(creep.room.name)) {
 				console.log("create flag")
 				if (creep.room.createFlag(creep.room.controller.pos, creep.memory.room+" EXPANSION") == ERR_NAME_EXISTS) {
 					Game.flags[creep.memory.room+" EXPANSION"].remove();
